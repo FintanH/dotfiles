@@ -35,6 +35,10 @@ Plug 'mhartington/oceanic-next'
 Plug 'geetarista/ego.vim'
 Plug 'monkoose/boa.vim'
 Plug 'euclio/vim-nocturne'
+
+" fuzzy search
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --bin' }
+Plug 'junegunn/fzf.vim'
 call plug#end()
 
 " Things we can align on
@@ -97,18 +101,14 @@ function! s:bufSwitch(count)
 endfunction
 nnoremap <expr> e <SID>bufSwitch(v:count)
 
-function! AddHsPragma()
-    " Add a new HS pragma, and sort the list so it's pretty
-    let pragma = input("LANGUAGE ")
-    normal! ms
-    if match(getline(1), "module") == 0
-      execute "normal! ggO\<ESC>"
-    endif
-    if pragma != ""
-        execute "normal! ggO{-# LANGUAGE " . pragma . " #-}\<ESC>"
-    endif
-    execute "normal! ggvip:sort\<CR>gv:EasyAlign -#\<CR>"
-    normal `s
+function! Haskell_add_language_pragma()
+  let line = max([0, search('^{-# LANGUAGE', 'n') - 1])
+  :call fzf#run({
+  \ 'source': 'ghc --supported-languages',
+  \ 'sink': {lp -> append(line, "{-# LANGUAGE " . lp . " #-}")},
+  \ 'options': '--multi --ansi --reverse --prompt "LANGUAGE> "',
+  \ 'down': '25%'})
+  execute "normal! ggvip:sort\<CR>gv:EasyAlign -#\<CR>"
 endfunction
 
 nnoremap :: :bp\|bd #<CR>
@@ -118,7 +118,7 @@ nnoremap K :silent! grep! <cword><CR>:copen<CR>
 nnoremap <silent> <leader>si magg/^import<CR>vip:EasyAlign q<CR>gv:sort /.*\%18v/<CR>:noh<CR>`a
 nnoremap # :e #<CR>
 nnoremap <silent> <leader>st :! (cd `git rev-parse --show-toplevel`; hasktags **/*.hs)<CR>:set tags=<C-R>=system("git rev-parse --show-toplevel")<CR><BS>/tags<CR>
-nnoremap  <leader>l :call AddHsPragma()<CR>
+nnoremap  <leader>l :call Haskell_add_language_pragma()<CR>
 nnoremap ;; :w<CR>
 vmap <leader><space> <Plug>(EasyAlign)
 
