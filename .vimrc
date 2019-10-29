@@ -13,8 +13,16 @@ Plug 'tpope/vim-commentary'
 Plug 'vim-scripts/vim-lamdify'
 Plug 'junegunn/rainbow_parentheses.vim'
 Plug 'neovimhaskell/haskell-vim'
+Plug 'purescript-contrib/purescript-vim'
 Plug 'rhysd/conflict-marker.vim'
 Plug 'justinmk/vim-sneak'
+Plug 'Chiel92/vim-autoformat'
+
+" Syntastic
+Plug 'vim-syntastic/syntastic'
+
+" Clippy check
+Plug 'wagnerf42/vim-clippy'
 
 " colors
 Plug 'altercation/vim-colors-solarized'
@@ -145,6 +153,14 @@ set incsearch
 set hlsearch
 set expandtab
 
+"CTags USAGE:
+" :tag<followed by one of thing>
+" :stag -- same as above and splits window
+" :ts<followed by multiple named thing>
+" :sts -- same as above and splits window
+"
+nnoremap <leader>h :!hasktags -o tags -c --ignore-close-implementation . && /usr/local/bin/ctags --append=yes .<CR><CR>
+
 nnoremap <leader>sv :vert sb  <BS>
 
 nnoremap Y y$
@@ -188,3 +204,19 @@ set shiftwidth=2
 :highlight ExtraWhitespace ctermbg=red guibg=red
 :autocmd ColorScheme * highlight ExtraWhitespace ctermbg=red guibg=red
 :match ExtraWhitespace /\s\+$/
+
+" stylish-haskell on save
+autocmd BufWrite *.hs :Autoformat
+" Don't automatically indent on save, since vim's autoindent for haskell is buggy
+autocmd FileType haskell let b:autoformat_autoindent=0
+
+" Syntastic Settings
+set statusline+=%#warningmsg#
+set statusline+=%{SyntasticStatuslineFlag()}
+set statusline+=%*
+
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 1
+let g:syntastic_check_on_open = 1
+let g:syntastic_check_on_wq = 0
+let g:syntastic_rust_checkers = ['clippy']
