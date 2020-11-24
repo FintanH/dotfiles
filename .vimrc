@@ -1,4 +1,9 @@
 call plug#begin()
+" GUI enhancements
+Plug 'itchyny/lightline.vim'
+Plug 'dense-analysis/ale'
+Plug 'machakann/vim-highlightedyank'
+
 Plug 'kana/vim-textobj-user'
 Plug 'isovector/ghci.vim'
 Plug 'michaeljsmith/vim-indent-object'
@@ -18,11 +23,8 @@ Plug 'rhysd/conflict-marker.vim'
 Plug 'justinmk/vim-sneak'
 Plug 'Chiel92/vim-autoformat'
 
-" Syntastic
-Plug 'vim-syntastic/syntastic'
-
 " Clippy check
-Plug 'wagnerf42/vim-clippy'
+Plug 'alx741/vim-rustfmt'
 
 " colors
 Plug 'altercation/vim-colors-solarized'
@@ -45,69 +47,195 @@ Plug 'monkoose/boa.vim'
 Plug 'euclio/vim-nocturne'
 
 " fuzzy search
-Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --bin' }
-Plug 'junegunn/fzf.vim'
+Plug 'airblade/vim-rooter' " does a relative search in the nearest git directory root
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' } " fuzzy finder
+Plug 'junegunn/fzf.vim' " also fuzzy finder
+
+" Semantic language support
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
+
+" Unison
+Plug 'unisonweb/unison', { 'branch': 'trunk', 'rtp': 'editor-support/vim' }
+
+" Svelte
+Plug 'leafOfTree/vim-svelte-plugin'
+
 call plug#end()
 
-" Things we can align on
-let g:easy_align_delimiters = {
-\ '[': { 'pattern': '[[\]]', 'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
-\ '(': { 'pattern': '[()]', 'left_margin': 0, 'right_margin': 0, 'stick_to_left': 0 },
-\ ']': { 'pattern': '[[\]]', 'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
-\ ')': { 'pattern': '[()]', 'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
-\ '<': { 'pattern': '[<]', 'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
-\ '.': { 'pattern': '\.', 'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\ '>': { 'pattern': '[->]', 'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
-\ ':': { 'pattern': '::', 'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\ '$': { 'pattern': '\$', 'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\ '~': { 'pattern': '\.\~', 'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\ '#': { 'pattern': '#', 'left_margin': 1, 'right_margin': 0, 'stick_to_left': 0 },
-\ 'q': { 'pattern': '\(qualified\)\?\ze ', 'left_margin': 1, 'right_margin': 1, 'stick_to_left': 0 },
-\ 'c': { 'pattern': '.\zs--', 'left_margin': 2, 'right_margin': 1, 'stick_to_left': 0, 'ignore_groups': [] },
-\ }
-
-
-function! PasteOver(type, ...)
-    let saveSel = &selection
-    let &selection = "inclusive"
-    let saveReg = @@
-    let reg = v:register
-    let regContents = getreg(reg)
-
-    if a:0  " Invoked from Visual mode, use '< and '> marks.
-        silent exe "normal! `<" . a:type . "`>"
-    elseif a:type == 'line'
-        silent exe "normal! '[V']"
-    elseif a:type == 'block'
-        silent exe "normal! `[\<C-V>`]"
-    else
-        silent exe "normal! `[v`]"
-    endif
-
-    execute "normal! \"" . reg . "p"
-
-    let &selection = saveSel
-    let @@ = saveReg
-
-    call setreg(reg, regContents)
+" Lightline
+let g:lightline = {
+      \ 'active': {
+      \   'left': [ [ 'mode', 'paste' ],
+      \             [ 'cocstatus', 'readonly', 'filename', 'modified' ] ]
+      \ },
+      \ 'component_function': {
+      \   'filename': 'LightlineFilename',
+      \   'cocstatus': 'coc#status'
+      \ },
+      \ }
+function! LightlineFilename()
+  return expand('%:t') !=# '' ? @% : '[No Name]'
 endfunction
 
-function! SetPasteOver()
-    set opfunc=PasteOver
-    return "g@"
+" =============================
+" Coc Settings
+" =============================
+" TextEdit might fail if hidden is not set.
+set hidden
+
+" Some servers have issues with backup files, see #649.
+set nobackup
+set nowritebackup
+
+" Give more space for displaying messages.
+set cmdheight=2
+
+" Having longer updatetime (default is 4000 ms = 4 s) leads to noticeable
+" delays and poor user experience.
+set updatetime=300
+
+" Don't pass messages to |ins-completion-menu|.
+set shortmess+=c
+
+" Always show the signcolumn, otherwise it would shift the text each time
+" diagnostics appear/become resolved.
+if has("patch-8.1.1564")
+  " Recently vim can merge signcolumn and number column into one
+  set signcolumn=number
+else
+  set signcolumn=yes
+endif
+
+" Use tab for trigger completion with characters ahead and navigate.
+" NOTE: Use command ':verbose imap <tab>' to make sure tab is not mapped by
+" other plugin before putting this into your config.
+inoremap <silent><expr> <TAB>
+      \ pumvisible() ? "\<C-n>" :
+      \ <SID>check_back_space() ? "\<TAB>" :
+      \ coc#refresh()
+inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
+
+function! s:check_back_space() abort
+  let col = col('.') - 1
+  return !col || getline('.')[col - 1]  =~# '\s'
 endfunction
 
-nnoremap <expr> PP SetPasteOver()
+" Use <c-space> to trigger completion.
+inoremap <silent><expr> <c-space> coc#refresh()
 
+" Use <cr> to confirm completion, `<C-g>u` means break undo chain at current
+" position. Coc only does snippet and additional edit on confirm.
+" <cr> could be remapped by other vim plugin, try `:verbose imap <CR>`.
+if exists('*complete_info')
+  inoremap <expr> <cr> complete_info()["selected"] != "-1" ? "\<C-y>" : "\<C-g>u\<CR>"
+else
+  inoremap <expr> <cr> pumvisible() ? "\<C-y>" : "\<C-g>u\<CR>"
+endif
 
-" Allow switching to buffer #<n> by typing <n>e
-function! s:bufSwitch(count)
-    if count >=# 1
-        return ":\<C-U>" . count . "b\<CR>"
-    endif
-    return 'e'
+" Use `[g` and `]g` to navigate diagnostics
+" Use `:CocDiagnostics` to get all diagnostics of current buffer in location list.
+nmap <silent> [g <Plug>(coc-diagnostic-prev)
+nmap <silent> ]g <Plug>(coc-diagnostic-next)
+
+" GoTo code navigation.
+nmap <silent> gd <Plug>(coc-definition)
+nmap <silent> gy <Plug>(coc-type-definition)
+nmap <silent> gi <Plug>(coc-implementation)
+nmap <silent> gr <Plug>(coc-references)
+
+" Use K to show documentation in preview window.
+nnoremap <silent> K :call <SID>show_documentation()<CR>
+
+function! s:show_documentation()
+  if (index(['vim','help'], &filetype) >= 0)
+    execute 'h '.expand('<cword>')
+  else
+    call CocAction('doHover')
+  endif
 endfunction
-nnoremap <expr> e <SID>bufSwitch(v:count)
+
+" Highlight the symbol and its references when holding the cursor.
+autocmd CursorHold * silent call CocActionAsync('highlight')
+
+" Symbol renaming.
+nmap <leader>rn <Plug>(coc-rename)
+
+" Formatting selected code.
+xmap <leader>f  <Plug>(coc-format-selected)
+nmap <leader>f  <Plug>(coc-format-selected)
+
+augroup mygroup
+  autocmd!
+  " Setup formatexpr specified filetype(s).
+  autocmd FileType typescript,json setl formatexpr=CocAction('formatSelected')
+  " Update signature help on jump placeholder.
+  autocmd User CocJumpPlaceholder call CocActionAsync('showSignatureHelp')
+augroup end
+
+" Applying codeAction to the selected region.
+" Example: `<leader>aap` for current paragraph
+xmap <leader>a  <Plug>(coc-codeaction-selected)
+nmap <leader>a  <Plug>(coc-codeaction-selected)
+
+" Remap keys for applying codeAction to the current buffer.
+nmap <leader>ac  <Plug>(coc-codeaction)
+" Apply AutoFix to problem on the current line.
+nmap <leader>qf  <Plug>(coc-fix-current)
+
+" Map function and class text objects
+" NOTE: Requires 'textDocument.documentSymbol' support from the language server.
+xmap if <Plug>(coc-funcobj-i)
+omap if <Plug>(coc-funcobj-i)
+xmap af <Plug>(coc-funcobj-a)
+omap af <Plug>(coc-funcobj-a)
+xmap ic <Plug>(coc-classobj-i)
+omap ic <Plug>(coc-classobj-i)
+xmap ac <Plug>(coc-classobj-a)
+omap ac <Plug>(coc-classobj-a)
+
+" Use CTRL-S for selections ranges.
+" Requires 'textDocument/selectionRange' support of LS, ex: coc-tsserver
+nmap <silent> <C-s> <Plug>(coc-range-select)
+xmap <silent> <C-s> <Plug>(coc-range-select)
+
+" Add `:Format` command to format current buffer.
+command! -nargs=0 Format :call CocAction('format')
+
+" Add `:Fold` command to fold current buffer.
+command! -nargs=? Fold :call     CocAction('fold', <f-args>)
+
+" Add `:OR` command for organize imports of the current buffer.
+command! -nargs=0 OR   :call     CocAction('runCommand', 'editor.action.organizeImport')
+
+" Add (Neo)Vim's native statusline support.
+" NOTE: Please see `:h coc-status` for integrations with external plugins that
+" provide custom statusline: lightline.vim, vim-airline.
+set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
+
+" Mappings for CoCList
+" Show all diagnostics.
+nnoremap <silent><nowait> <space>a  :<C-u>CocList diagnostics<cr>
+" Manage extensions.
+nnoremap <silent><nowait> <space>e  :<C-u>CocList extensions<cr>
+" Show commands.
+nnoremap <silent><nowait> <space>c  :<C-u>CocList commands<cr>
+" Find symbol of current document.
+nnoremap <silent><nowait> <space>o  :<C-u>CocList outline<cr>
+" Search workspace symbols.
+nnoremap <silent><nowait> <space>s  :<C-u>CocList -I symbols<cr>
+" Do default action for next item.
+nnoremap <silent><nowait> <space>j  :<C-u>CocNext<CR>
+" Do default action for previous item.
+nnoremap <silent><nowait> <space>k  :<C-u>CocPrev<CR>
+" Resume latest coc list.
+nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
+
+" Use auocmd to force lightline update.
+autocmd User CocStatusChange,CocDiagnosticChange call lightline#update()
+
+" Open hotkeys
+map <C-p> :Files<CR>
+nmap <leader>; :Buffer<CR>
 
 function! Haskell_add_language_pragma()
   let line = max([0, search('^{-# LANGUAGE', 'n') - 1])
@@ -122,13 +250,8 @@ endfunction
 nnoremap :: :bp\|bd #<CR>
 nnoremap <C-q> <C-W><C-q>
 nnoremap <leader>cd :cd %:p:h<CR>
-nnoremap K :silent! grep! <cword><CR>:copen<CR>
-nnoremap <silent> <leader>si magg/^import<CR>vip:EasyAlign q<CR>gv:sort /.*\%18v/<CR>:noh<CR>`a
 nnoremap # :e #<CR>
-nnoremap <silent> <leader>st :! (cd `git rev-parse --show-toplevel`; hasktags **/*.hs)<CR>:set tags=<C-R>=system("git rev-parse --show-toplevel")<CR><BS>/tags<CR>
-nnoremap  <leader>l :call Haskell_add_language_pragma()<CR>
 nnoremap ;; :w<CR>
-vmap <leader><space> <Plug>(EasyAlign)
 
 let g:grep_cmd_opts = '--line-numbers --noheading'
 let mapleader = " "
@@ -153,14 +276,6 @@ set incsearch
 set hlsearch
 set expandtab
 
-"CTags USAGE:
-" :tag<followed by one of thing>
-" :stag -- same as above and splits window
-" :ts<followed by multiple named thing>
-" :sts -- same as above and splits window
-"
-nnoremap <leader>h :!hasktags -o tags -c --ignore-close-implementation . && /usr/local/bin/ctags --append=yes .<CR><CR>
-
 nnoremap <leader>sv :vert sb  <BS>
 
 nnoremap Y y$
@@ -178,8 +293,6 @@ vnoremap k gk
 nnoremap L <C-W><C-L>
 nnoremap H <C-W><C-H>
 
-nnoremap <silent> <C-c> :copen<CR>
-
 "Remove all trailing whitespace by pressing F5
 nnoremap <leader>rw :let _s=@/<Bar>:%s/\s\+$//e<Bar>:let @/=_s<Bar><CR>
 
@@ -196,9 +309,9 @@ let g:haskell_indent_let = 4
 let g:haskell_indent_case = 2
 let g:haskell_indent_where = 6
 
-set softtabstop=2
-set tabstop=2
-set shiftwidth=2
+set softtabstop=4
+set tabstop=4
+set shiftwidth=4
 
 " Show trailing whitespace:
 :highlight ExtraWhitespace ctermbg=red guibg=red
@@ -206,17 +319,18 @@ set shiftwidth=2
 :match ExtraWhitespace /\s\+$/
 
 " stylish-haskell on save
-autocmd BufWrite *.hs :Autoformat
+" autocmd BufWrite *.hs :Autoformat
 " Don't automatically indent on save, since vim's autoindent for haskell is buggy
-autocmd FileType haskell let b:autoformat_autoindent=0
+" autocmd FileType haskell let b:autoformat_autoindent=0
 
-" Syntastic Settings
-set statusline+=%#warningmsg#
-set statusline+=%{SyntasticStatuslineFlag()}
-set statusline+=%*
+" https://github.com/rust-lang/rust.vim/issues/192
+let g:rustfmt_autosave = 1
+let g:rustfmt_emit_files = 1
+let g:rustfmt_fail_silently = 0
+let g:rust_clip_command = 'xclip -selection clipboard'
 
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 1
-let g:syntastic_check_on_open = 1
-let g:syntastic_check_on_wq = 0
-let g:syntastic_rust_checkers = ['clippy']
+" ripgrep
+if executable('rg')
+  let g:ackprg = 'rg --vimgrep --no-heading'
+  set grepprg=rg\ --vimgrep
+endif
