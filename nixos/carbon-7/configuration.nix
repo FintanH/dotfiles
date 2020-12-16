@@ -104,6 +104,7 @@
     glibc
     nix-prefetch-git
     nodejs
+    tree
     wget
 
     # Haskell
