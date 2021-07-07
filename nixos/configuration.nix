@@ -2,136 +2,140 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-# Edit this configuration file to define what should be installed on
-# Edit this configuration file to define what should be installed on
 { config, pkgs, options, ... }:
 
 {
   imports =
-    [ # thinkpad
+    [ # Include the results of the hardware scan.
+      ./hardware-configuration.nix
+
+      ./audio.nix
+      ./cachix.nix
+      ./fonts.nix
+      ./gnome.nix
+      ./neovim.nix
+      ./podman.nix
+      ./zsh.nix
+
+      # Laptop specific hardware
       <nixos-hardware/lenovo/thinkpad>
       <nixos-hardware/lenovo/thinkpad/x1>
       <nixos-hardware/lenovo/thinkpad/x1/7th-gen>
-
-      # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-
-      # ./gnome.nix
-
-      # Include cachix
-      ./cachix.nix
     ];
 
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.kernelPackages = pkgs.linuxPackages_testing;
-  boot.kernelModules = [ "acpi" "acpi_call" ];
 
-  # Allow non-free firmware, such as for intel wifi
-  hardware = {
-    enableRedistributableFirmware = true;
+  # Luks crypt
+  boot.initrd.luks.devices = {
+    root = {
+      device = "/dev/nvme0n1p2";
+      preLVM = true;
+    };
   };
 
-  # NetworkManager
-  networking.networkmanager.enable = true;
+  services.fwupd.enable = true;
+
+  networking.hostName = "haptop"; # Define your hostname.
+  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
+
+  # Set your time zone.
+  networking.timeServers = options.networking.timeServers.default ++ [ "ntp.example.com" ];
+  time.timeZone = "Europe/Dublin";
+
+  # The global useDHCP flag is deprecated, therefore explicitly set to false here.
+  # Per-interface useDHCP will be mandatory in the future, so this generated config
+  # replicates the default behaviour.
+  networking.useDHCP = false;
+  networking.interfaces.enp0s31f6.useDHCP = true;
+  networking.interfaces.wlp0s20f3.useDHCP = true;
 
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
 
-  # Configure network time server
-  networking.timeServers = options.networking.timeServers.default ++ [ "ntp.example.com" ];
-  
   # Select internationalisation properties.
-  # i18n = {
-  #   consoleFont = "Lat2-Terminus16";
-  #   consoleKeyMap = "us";
-  #   defaultLocale = "en_US.UTF-8";
+  # i18n.defaultLocale = "en_US.UTF-8";
+  # console = {
+  #   font = "Lat2-Terminus16";
+  #   keyMap = "us";
   # };
 
-  # Set your time zone.
-  time.timeZone = "Europe/Dublin";
+  # Enable Bluetooth
+  hardware.bluetooth.enable = true;
+  services.blueman.enable = true;
 
-  # Allow unfree
-  nixpkgs.config.allowUnfree = true;
+  # Configure keymap in X11
+  services.xserver.layout = "us";
+  services.xserver.xkbOptions = "eurosign:e";
 
-  # zsh settings
-  # Enable zsh
-  programs.zsh.enable = true;
+  # Enable CUPS to print documents.
+  # services.printing.enable = true;
 
-  # Enable Oh-my-zsh
-  programs.zsh.ohMyZsh = {
-    enable = true;
-    plugins = [ "git" "sudo" ];
+  # Enable touchpad support (enabled default in most desktopManager).
+  services.xserver.libinput.enable = true;
+
+  # Define a user account. Don't forget to set a password with ‘passwd’.
+  users.defaultUserShell = pkgs.zsh;
+  users.users.haptop = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "networkmanager" "audio" "video" "disk" "docker" ]; # Enable ‘sudo’ for the user.
+    shell = pkgs.zsh;
   };
 
-  programs.zsh.interactiveShellInit = ''
-    export ZSH=${pkgs.oh-my-zsh}/share/oh-my-zsh/
-    # Customize your oh-my-zsh options here
-    ZSH_THEME="lambda"
-    plugins=(git)
-    source $ZSH/oh-my-zsh.sh
-  '';
-
-  programs.zsh.promptInit = ""; # Clear this to avoid a conflict with oh-my-zsh
+  # Allow unfree packages
+  nixpkgs.config.allowUnfree = true;
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-        exfat
-        firefox
-        gcc 
-        spotify
-        libGL
-        (let neuronSrc = builtins.fetchTarball "https://github.com/srid/neuron/archive/master.tar.gz";
-  in import neuronSrc {})
-        nodejs
-        rustup
-        slack
-        udisks2
-        wget
+    # Applications
+    element-desktop
+    firefox
+    ledger-live-desktop
+    spotify
+    zoom-us
 
-        # display configuration
-        autorandr
+    # Audio
+    pulseaudioFull
+    cmus
 
-        # sound
-        pulseaudioFull
-        alsaUtils
-        cmus
+    # Development
+    asciidoctor
+    direnv
+    docker
+    (import ./emacs.nix { inherit pkgs; })
+    fd
+    fzf
+    git
+    glibc
+    gnupg
+    niv
+    nix-prefetch-git
+    nodejs
+    tree
+    wget
 
-        # dev tools
-        git
-        nix-prefetch-git
-        neovim
+    # Haskell
+    cabal-install
+    cabal2nix
 
-        # haskell
-        cabal-install
-        cabal2nix
-
-        # hardware
-        bolt
-        thunderbolt
-    ];
-
-  # Make nvim default editor
-  programs.vim.defaultEditor = true;
+    # Rust
+    rustup
+    rust-analyzer
+  ];
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   # programs.mtr.enable = true;
-  # programs.gnupg.agent = { enable = true; enableSSHSupport = true; };
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
+  };
 
   # List services that you want to enable:
-
-  # firmware update
-  services.fwupd.enable = true;
-
-  # Daemon to enable security levels for Thunderbolt 3
-  services.hardware.bolt.enable = true;
-
-  # acpi daemon
-  services.acpid.enable = true;
 
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
@@ -142,48 +146,13 @@
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
 
-  # Enable CUPS to print documents.
-  services.printing.enable = true;
-  services.printing.drivers = [ pkgs.gutenprint ];
+  # This value determines the NixOS release from which the default
+  # settings for stateful data, like file locations and database versions
+  # on your system were taken. It‘s perfectly fine and recommended to leave
+  # this value at the release version of the first install of this system.
+  # Before changing this value read the documentation for this option
+  # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
+  system.stateVersion = "20.09"; # Did you read the comment?
 
-  # Enable sound.
-  sound.enable = true;
-  hardware.pulseaudio.enable = true;
-
-  # Enable the X11 windowing system.
-  services.xserver.enable = true;
-  services.xserver.autorun = true;
-  services.xserver.layout = "us";
-  services.xserver.xkbOptions = "eurosign:e";
-
-  # Enable touchpad support.
-  services.xserver.libinput.enable = true;
-
-  # Enable the KDE Desktop Environment.
-  services.xserver.displayManager.sddm.enable = true;
-  services.xserver.desktopManager.plasma5.enable = true;
-
-  # Enable the GNOME Desktop Environment.
-  # services.xserver.displayManager.gdm.enable = true;
-  # services.xserver.desktopManager.gnome3.enable = true;
-
-  # Video drivers
-  services.xserver.videoDrivers = [ "intel" "modesetting" ];
-
-  # NTP Time syncing
-  services.ntp.enable = true;
-
-  # Define a user account. Don't forget to set a password with ‘passwd’.
-  users.users.haptop = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" ]; # Enable ‘sudo’ for the user.
-  };
-
-  # This value determines the NixOS release with which your system is to be
-  # compatible, in order to avoid breaking some software such as database
-  # servers. You should change this only after NixOS release notes say you
-  # should.
-  system.stateVersion = "19.09"; # Did you read the comment?
 }
 
-# Edit this configuration file to define what should be installed on
