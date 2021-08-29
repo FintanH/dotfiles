@@ -92,6 +92,7 @@
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     # Applications
+    aerc # email client
     element-desktop
     firefox
     ledger-live-desktop
@@ -125,6 +126,10 @@
     # Rust
     rustup
     rust-analyzer
+
+    # Linux debugging
+    pciutils
+    usbutils
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
