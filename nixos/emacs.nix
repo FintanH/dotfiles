@@ -13,14 +13,15 @@ in
     adoc-mode
     company
     direnv
+    flycheck
     lsp-mode
     lsp-ui
     magit          # ; Integrate git <C-x g>
     nix-haskell-mode
     projectile
     projectile-ripgrep
+    use-package
     yasnippet
-    flycheck
   ]) ++ (with epkgs.melpaPackages; [
     lsp-haskell
     monokai-theme
